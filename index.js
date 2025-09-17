@@ -35,9 +35,21 @@ app.get("/catalog", async (req, res) => {
       Category: req.query.Category || '11', // Accessories category
       Subcategory: req.query.Subcategory || '12', // T-Shirts
       SortType: req.query.SortType || '4', // Recently Updated
-      Limit: req.query.Limit || '10',
+      Limit: req.query.Limit || '10', // Must be 10, 28, 30, 60, or 120
       ...req.query // Override with any provided parameters
     };
+    
+    // Validate limit parameter
+    const validLimits = [10, 28, 30, 60, 120];
+    const requestedLimit = parseInt(defaultParams.Limit);
+    if (!validLimits.includes(requestedLimit)) {
+      // Find the closest valid limit
+      const closestLimit = validLimits.reduce((prev, curr) => 
+        Math.abs(curr - requestedLimit) < Math.abs(prev - requestedLimit) ? curr : prev
+      );
+      defaultParams.Limit = closestLimit.toString();
+      console.log(`Invalid limit ${requestedLimit}, using ${closestLimit} instead`);
+    }
     
     const url = "https://catalog.roblox.com/v2/search/items/details?" + new URLSearchParams(defaultParams);
     console.log("Fetching from Roblox:", url);
@@ -85,7 +97,8 @@ app.get("/", (req, res) => {
   res.json({ 
     status: "Roblox Catalog Proxy Running",
     cache_size: cache.size,
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    valid_limits: [10, 28, 30, 60, 120]
   });
 });
 
