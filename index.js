@@ -8,7 +8,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Rate limiting - increased to avoid 429 errors
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 2000; // 2 seconds
+const MIN_REQUEST_INTERVAL = 5000; // 5 seconds between requests
 
 // Helper: wait function
 function wait(ms) {
@@ -48,71 +48,27 @@ async function fetchFromRoblox(params) {
 
 app.get("/catalog", async (req, res) => {
   try {
-    const allMode = req.query.all === "true"; // fetch multiple pages if set
-    const defaultParams = {
-      limit: req.query.limit || "30",
-      cursor: req.query.cursor || ""
-    };
-
+    const keyword = req.query.keyword || "";
+    const limit = parseInt(req.query.limit) || 30;
+    
     // Validate limit
     const validLimits = [10, 28, 30, 60, 120];
-    let limit = parseInt(defaultParams.limit);
-    if (!validLimits.includes(limit)) limit = 30;
-    defaultParams.limit = limit.toString();
+    const finalLimit = validLimits.includes(limit) ? limit : 30;
 
-    // If all=false → single page
-    if (!allMode) {
-      const data = await fetchFromRoblox(defaultParams);
-      return res.json(data);
-    }
+    const params = {
+      limit: finalLimit.toString(),
+      keyword: keyword
+    };
 
-    // all=true → keep fetching until ~300 items (reduced to avoid rate limits)
-    let results = [];
-    let cursor = "";
-    let pages = 0;
+    console.log(`Searching for: "${keyword}" with limit ${finalLimit}`);
     
-    while (results.length < 300 && pages < 5) { // reduced safety cap
-      const params = { ...defaultParams, cursor: cursor };
-      
-      try {
-        const data = await fetchFromRoblox(params);
-        
-        if (data && data.data) {
-          results.push(...data.data);
-          console.log(`Page ${pages + 1}: Added ${data.data.length} items. Total: ${results.length}`);
-        }
-        
-        if (!data.nextPageCursor) {
-          console.log("No more pages available");
-          break;
-        }
-        
-        cursor = data.nextPageCursor;
-        pages++;
-        
-        // Add extra delay between pages to avoid rate limiting
-        if (pages < 5 && data.nextPageCursor) {
-          console.log("Waiting 6 seconds before next page...");
-          await wait(6000); // 6 second delay between pages
-        }
-        
-      } catch (error) {
-        console.error(`Error on page ${pages + 1}:`, error.message);
-        if (error.message.includes("429")) {
-          console.log("Rate limited, stopping pagination");
-          break;
-        }
-        throw error; // Re-throw non-rate-limit errors
-      }
+    const data = await fetchFromRoblox(params);
+    
+    if (data && data.data) {
+      console.log(`Found ${data.data.length} items for keyword: "${keyword}"`);
     }
-
-    console.log(`Fetched ${results.length} items in ${pages} pages`);
-    res.json({ 
-      data: results, 
-      total: results.length,
-      pages: pages,
-      nextPageCursor: cursor || null
-    });
+    
+    res.json(data);
     
   } catch (err) {
     console.error("Proxy error:", err.message);
