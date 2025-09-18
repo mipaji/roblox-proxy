@@ -8,7 +8,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Rate limiting - increased to avoid 429 errors
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 5000; // 5 seconds between requests
+const MIN_REQUEST_INTERVAL = 2000; // 2 seconds
 
 // Helper: wait function
 function wait(ms) {
